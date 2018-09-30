@@ -8,15 +8,15 @@ $dsPath = "$PSScriptRoot/data.SQLite"
 $commands = 1, 2
 
 # Make the database if it doesn't exist for some reason, this may go in a recovery script or not exist
-if (-not (Test-Path $dsPath)) {
-    Write-Host 'No database detected, creating one and adding members'
-    $createTablesQuery = [IO.File]::ReadAllText("$PSScriptRoot\createTables.sql")
-    Invoke-SQLiteQuery -DataSource $dsPath -Query $createTablesQuery
-    $insertMemberQuery = "INSERT INTO Members (name) VALUES (@name);"
-    foreach ($line in (Get-Content "$PSScriptRoot\members.txt")) {
-        Invoke-SQLiteQuery -DataSource $dsPath -Query $insertMemberQuery -SqlParameters @{name = $line} 
-    }
-}
+# if (-not (Test-Path $dsPath)) {
+#     Write-Host 'No database detected, creating one and adding members'
+#     $createTablesQuery = [IO.File]::ReadAllText("$PSScriptRoot\createTables.sql")
+#     Invoke-SQLiteQuery -DataSource $dsPath -Query $createTablesQuery
+#     $insertMemberQuery = "INSERT INTO Members (name) VALUES (@name);"
+#     foreach ($line in (Get-Content "$PSScriptRoot\members.txt")) {
+#         Invoke-SQLiteQuery -DataSource $dsPath -Query $insertMemberQuery -SqlParameters @{name = $line}
+#     }
+# }
 
 function HandleSqlModule {
     try { Import-Module PSSQLite -ErrorAction Stop }
