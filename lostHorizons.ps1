@@ -39,7 +39,7 @@ function ViewMembers {
 }
 
 function Main {
-    Write-Host "`n`n$welcomeBanner`n`n`n"
+    Write-Host "`n`n$welcomeBanner`n`n`n" -ForegroundColor Cyan
     HandleSqlModule
     while ($true) {
         Write-Host $mainPrompt
