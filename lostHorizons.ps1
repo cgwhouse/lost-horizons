@@ -8,7 +8,7 @@ $welcomeBanner = [IO.File]::ReadAllText("$PSScriptRoot\banner.txt")
 $mainPrompt = "`nMain Menu`n`nAvailable Commands:`n-------------------`n1 - View Songs`n2 - View Team Members`n"
 $membersPrompt = "`n`nAvailable Commands:`n-------------------`n1 - Add a Member`n2 - Remove a Member`n"
 $submissionsPrompt = "`n`nAvailable Commands:`n-------------------`n1 - Play a Song`n2 - Add a Song`n"
-$removeMemberQuery = "DELETE FROM Members WHERE name = @name;DELETE FROM Submissions WHERE submitter_ID = (SELECT member_ID FROM Members WHERE name = @name);"
+$removeMemberQuery = "DELETE FROM Submissions WHERE submitter_ID = (SELECT member_ID FROM Members WHERE name = @name);DELETE FROM Members WHERE name = @name;"
 $viewSubmissionsQuery = "SELECT submission_ID AS 'Submission #', Submissions.name AS 'Submission Name', url AS 'URL', members.name AS 'Submitted By' FROM Submissions INNER JOIN Members ON Submissions.submitter_ID = Members.member_ID;"
 $submissionInsertQuery = "INSERT INTO Submissions (name, url, submitter_ID) VALUES (@name, @url, @submitter_ID);"
 $retrieveUrlQuery = "SELECT url FROM Submissions WHERE submission_ID = @n;"
@@ -37,18 +37,28 @@ function ViewData {
         }
         catch { Write-Host "`nInvalid command, use the numbers on the left" }
         switch ($cmd) {
-            1 { $firstAction }
-            2 { $secondAction }
+            1 {
+                if ($firstAction -eq "PlaySubmission") {
+                    PlaySubmission
+                }
+                else { AddMember } 
+            }
+            2 {
+                if ($secondAction -eq "AddSubmission") {
+                    AddSubmission
+                }
+                else { RemoveMember }
+            }
         }
     }
 }
 
 function ViewSubmissions {
-    ViewData $viewSubmissionsQuery $submissionsPrompt PlaySubmission AddSubmission
+    ViewData $viewSubmissionsQuery $submissionsPrompt "PlaySubmission" "AddSubmission"
 }
 
 function ViewMembers {
-    ViewData "SELECT name AS 'Member List' FROM Members;" $membersPrompt AddMember RemoveMember
+    ViewData "SELECT name AS 'Member List' FROM Members;" $membersPrompt "AddMember" "RemoveMember"
 }
 
 #endregion View Data
