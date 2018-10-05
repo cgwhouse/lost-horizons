@@ -7,21 +7,22 @@
 $welcomeBanner = [IO.File]::ReadAllText("$PSScriptRoot\banner.txt")
 $mainPrompt = "`nMain Menu`n`nAvailable Commands:`n-------------------`n1 - View Songs`n2 - View Team Members`n"
 $membersPrompt = "`n`nAvailable Commands:`n-------------------`n1 - Add a Member`n2 - Remove a Member`n"
-$submissionsPrompt = "`n`nAvailable Commands:`n-------------------`n1 - Play a Song`n2 - Add a Song`n"
+$submissionsPrompt = "`n`nAvailable Commands:`n-------------------`n1 - Play a Song`n2 - Add a Song`n3 - Play a Random Song!`n"
 $removeMemberQuery = "DELETE FROM Submissions WHERE submitter_ID = (SELECT member_ID FROM Members WHERE name = @name);DELETE FROM Members WHERE name = @name;"
 $viewSubmissionsQuery = "SELECT submission_ID AS 'Submission #', Submissions.name AS 'Submission Name', url AS 'URL', members.name AS 'Submitted By' FROM Submissions INNER JOIN Members ON Submissions.submitter_ID = Members.member_ID;"
 $submissionInsertQuery = "INSERT INTO Submissions (name, url, submitter_ID) VALUES (@name, @url, @submitter_ID);"
 $retrieveUrlQuery = "SELECT url FROM Submissions WHERE submission_ID = @n;"
 $retrieveMemberIDQuery = "SELECT member_ID FROM Members WHERE name = @name;"
 $dsPath = "$PSScriptRoot/data.SQLite"
-$commands = 1, 2
+$memberCommands = 1, 2
+$submissionsCommands = 1, 2, 3
 
 #endregion Globals
 
 #region View Data
 
 function ViewData {
-    $query = $args[0]; $introPrompt = $args[1]; $firstAction = $args[2]; $secondAction = $args[3]
+    $query = $args[0]; $introPrompt = $args[1]; $firstAction = $args[2]; $secondAction = $args[3]; $commands = $args[4];
     while ($true) {
         $lst = Invoke-SqliteQuery -DataSource $dsPath -Query $query | Out-String
         $lst.TrimEnd()
@@ -35,7 +36,7 @@ function ViewData {
             $cmd = [int]$cmd
             if (-not ($commands.Contains($cmd))) { throw }
         }
-        catch { Write-Host "`nInvalid command, use the numbers on the left" }
+        catch { Write-Host "`nInvalid command, use the numbers on the left"; continue }
         switch ($cmd) {
             1 {
                 if ($firstAction -eq "PlaySubmission") {
@@ -49,16 +50,17 @@ function ViewData {
                 }
                 else { RemoveMember }
             }
+            3 { PlayRandom }
         }
     }
 }
 
 function ViewSubmissions {
-    ViewData $viewSubmissionsQuery $submissionsPrompt "PlaySubmission" "AddSubmission"
+    ViewData $viewSubmissionsQuery $submissionsPrompt "PlaySubmission" "AddSubmission" $submissionsCommands
 }
 
 function ViewMembers {
-    ViewData "SELECT name AS 'Member List' FROM Members;" $membersPrompt "AddMember" "RemoveMember"
+    ViewData "SELECT name AS 'Member List' FROM Members;" $membersPrompt "AddMember" "RemoveMember" $memberCommands
 }
 
 #endregion View Data
@@ -71,11 +73,10 @@ function PlaySubmission {
     try {
         $submissionNumber = [int]$submissionNumber
         $url = Invoke-SqliteQuery -DataSource $dsPath -Query $retrieveUrlQuery -SqlParameters @{ n = $submissionNumber } | Out-DataTable
-        $url = $url.Rows[0].url
         if (-not ($url)) { throw }
         else {
-            Write-Host "Launching Chrome...`n"
-            Start-Process -FilePath 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList $url
+            Write-Host "`nLaunching Chrome...`n"
+            Start-Process -FilePath 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList $url.Rows[0].url
         }
     }
     catch { Write-Host "`nNo Submissions with that Submission # are in the table" }
@@ -94,17 +95,24 @@ function AddSubmission {
         $submitterName = Read-Host 'Which team member gave us this link? (Press enter to abort)'
         if (-not ($submitterName)) { return }
         $submitterID = Invoke-SqliteQuery -DataSource $dsPath -Query $retrieveMemberIDQuery -SqlParameters @{ name = $submitterName} | Out-DataTable
-        $submitterID = $submitterID.Rows[0].member_ID
         if (-not ($submitterID)) { Write-Host "`nThat name was not found in the list of members." } else { break }
     }
     try {
         Invoke-SqliteQuery -ErrorAction Stop -DataSource $dsPath -Query $submissionInsertQuery -SqlParameters @{
             name         = $submissionName
             url          = $submissionUrl
-            submitter_ID = $submitterID
+            submitter_ID = $submitterID.Rows[0].member_ID
         }
     }
     catch { Write-Host "`nThat didn't work...the name and url for the submission must each be unique" }
+}
+
+function PlayRandom {
+    $ids = Invoke-SqliteQuery -DataSource $dsPath -Query "SELECT submission_ID FROM Submissions;" | Out-DataTable
+    $submission_ID = $ids.Rows[(Get-Random -Minimum 0 -Maximum $ids.Rows.Count)].submission_ID
+    $url = Invoke-SqliteQuery -DataSource $dsPath -Query $retrieveUrlQuery -SqlParameters @{ n = $submission_ID } | Out-DataTable
+    Write-Host "`nPlaying random song..."
+    Start-Process -FilePath 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList $url.Rows[0].url
 }
 
 function AddOrRemoveMember {
@@ -144,7 +152,7 @@ function Main {
         if (-not $cmd) { exit }
         try {
             $cmd = [int]$cmd
-            if (-not ($commands.Contains($cmd))) { throw }
+            if (-not ($memberCommands.Contains($cmd))) { throw }
         }
         catch { Write-Host "`nInvalid command, use the numbers on the left" }
         switch ($cmd) {
